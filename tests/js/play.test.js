@@ -478,7 +478,7 @@ describe('accounts', () => {
 
   it('links a first portfolio login to an account, or makes one, or cancels', async () => {
     let tries = 0;
-    const pending = { 'GET /api/account': { username: null, portfolio_pending: 'Gambler' },
+    const pending = { 'GET /api/account': { username: null, portfolio_pending: { username: 'Gambler' } },
       'POST /api/sync': { saves: {}, deleted: [], record: record() } };
     await boot({ portfolio: true, routes: { ...pending, 'POST /api/portfolio/link': () => {
       tries += 1;
@@ -500,6 +500,19 @@ describe('accounts', () => {
     await boot({ portfolio: true, routes: { ...pending, 'POST /api/logout': reply(500, {}) } });
     await click($('account-link-cancel'));
     expect(shown()).toEqual(['main-menu']);
+  });
+
+  it('asks a first portfolio login without a name to link or make an account too', async () => {
+    await boot({ portfolio: true, routes: { 'GET /api/account': { username: null, portfolio_pending: { username: '' } } } });
+    expect(shown()).toEqual(['account-link']);
+    expect($('account-link-name').textContent).toBe('');
+  });
+
+  it('shows why a portfolio login was refused, then drops it from the address', async () => {
+    history.replaceState(null, '', '/?login_error=Your+portfolio+login+expired.+Try+again.');
+    await boot({ portfolio: true });
+    expect($('menu-error').textContent).toBe('Your portfolio login expired. Try again.');
+    expect(location.search).toBe('');
   });
 
   it('notes when the account check fails', async () => {

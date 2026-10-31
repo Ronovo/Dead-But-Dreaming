@@ -1,5 +1,6 @@
 import os
 import time
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from ronovo_portfolio_auth import portfolio_sso
@@ -19,12 +20,16 @@ def portfolio(monkeypatch):
     monkeypatch.setenv("PORTFOLIO_SSO_PUBLIC_KEY", PUBLIC_KEY)
 
 
-def portfolio_login(client, sub="7", username="Gambler"):
+def portfolio_login(client, sub="7", username="Gambler", token=None):
     client.get("/sso/login")
     with client.session_transaction() as session:
         state = session["portfolio_state"]
-    token = portfolio_sso.issue(KEY, "dead-but-dreaming", sub, username)
+    token = token or portfolio_sso.issue(KEY, "dead-but-dreaming", sub, username)
     return client.post("/sso/callback", data={"state": state, "token": token})
+
+
+def login_error(response):
+    return parse_qs(urlsplit(response.location).query).get("login_error")
 
 
 def account(client):
@@ -111,8 +116,27 @@ def test_account_requests_explain_what_is_wrong(client):
 
 
 def test_the_first_portfolio_login_waits_for_a_choice(client, portfolio):
-    assert portfolio_login(client).status_code == 302
-    assert account(client) == {"username": None, "portfolio_pending": "Gambler"}
+    response = portfolio_login(client)
+    assert (response.status_code, login_error(response)) == (302, None)
+    assert account(client) == {"username": None, "portfolio_pending": {"username": "Gambler"}}
+
+
+def test_a_portfolio_login_without_a_name_still_waits_for_a_choice(client, portfolio):
+    portfolio_login(client, username="")
+    assert account(client)["portfolio_pending"] == {"username": ""}
+
+
+def test_a_callback_with_no_login_in_progress_goes_back_to_the_menu_with_a_message(client):
+    response = client.post("/sso/callback", data={"state": "stale", "token": "stale"})
+    assert response.status_code == 302
+    assert login_error(response) == ["Your portfolio login expired. Try again."]
+
+
+def test_a_callback_with_a_bad_token_goes_back_to_the_menu_with_a_message(client, portfolio):
+    response = portfolio_login(client, token="not a token")
+    assert response.status_code == 302
+    assert login_error(response) == ["That portfolio login didn't check out. Try again."]
+    assert account(client) == {"username": None, "portfolio_pending": None}
 
 
 def test_a_new_account_for_a_portfolio_login_opens_on_every_device(client, portfolio):

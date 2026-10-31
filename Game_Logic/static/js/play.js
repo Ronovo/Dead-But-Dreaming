@@ -508,10 +508,15 @@
         await request(urls.logoutUrl, {}).catch(console.error);
         setAccount(null);
     });
+    const loginError = new URLSearchParams(location.search).get("login_error");
+    if (loginError) {
+        $("menu-error").textContent = loginError;
+        history.replaceState(null, "", location.pathname);
+    }
     request(urls.accountUrl)
         .then((data) => {
             setAccount(data.username);
-            if (data.portfolio_pending) showAccountLink(data.portfolio_pending);
+            if (data.portfolio_pending) showAccountLink(data.portfolio_pending.username);
             if (!data.username) return;
             return syncAccount();
         })

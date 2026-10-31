@@ -218,7 +218,7 @@ def create_app() -> Flask:
 
     # The first portfolio login here asks whether to link an account the player already has or make a new one,
     # so it waits in the session until they choose.
-    def portfolio_login(account: Dict):
+    def portfolio_login(account: Dict, next_path: Optional[str]):
         user_id = accounts.linked_user(account["sub"])
         if user_id is None:
             session.clear()
@@ -227,6 +227,9 @@ def create_app() -> Flask:
         else:
             log_in(user_id, accounts.username(user_id))
         return redirect(url_for("index"))
+
+    def portfolio_error(reason: str):
+        return redirect(url_for("index", login_error=portfolio_sso.LOGIN_MESSAGES[reason]))
 
     def portfolio_pending() -> Optional[Dict]:
         pending = session.get("portfolio_pending")
@@ -237,7 +240,7 @@ def create_app() -> Flask:
         log_in(user_id, username)
         return jsonify(username=username)
 
-    portfolio_sso.add_flask_routes(app, "dead-but-dreaming", portfolio_login)
+    portfolio_sso.add_flask_routes(app, "dead-but-dreaming", portfolio_login, portfolio_error)
 
     @app.get("/")
     def index():
@@ -358,7 +361,7 @@ def create_app() -> Flask:
     def api_account():
         pending = portfolio_pending()
         return jsonify(username=session.get("username") if current_user() is not None else None,
-                       portfolio_pending=pending["username"] if pending else None)
+                       portfolio_pending={"username": pending["username"]} if pending else None)
 
     @app.post("/api/register")
     def api_register():

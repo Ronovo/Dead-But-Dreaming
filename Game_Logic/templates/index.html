@@ -53,7 +53,7 @@
             <input id="login-username" class="login-input" maxlength="20" autocomplete="username" placeholder="Username" aria-label="Username">
             <input id="login-password" class="login-input" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password">
             <button type="submit" class="menu-button">Log In</button>
-            <p class="menu-note">To create an account, also pick a security question. You need its answer to reset your password.</p>
+            <p class="menu-note">To create an account, also pick a security question. You need its answer to reset your password. It can be made up, as long as you remember it.</p>
             <select id="login-question" class="login-input" aria-label="Security question">
                 <option value="">Security question</option>
                 {% for question in questions %}<option>{{ question }}</option>{% endfor %}
